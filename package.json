@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-power-optimization",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "cordova": {
     "id": "cordova-plugin-power-optimization",
     "platforms": [

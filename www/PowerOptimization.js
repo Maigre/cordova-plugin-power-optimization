@@ -23,6 +23,14 @@ exports.IsIgnoringBatteryOptimizations = function (arg0) {
     return execute_boolean('IsIgnoringBatteryOptimizations', arg0);
 };
 
+// API 28+: true if the user (or OEM policy) restricted the app's background
+// activity in Settings — separate from the Doze whitelist. Returns false on
+// older Android (the signal didn't exist). Field test 2026-05-18 traced the
+// Samsung A41 mid-walk kills to this layer.
+exports.IsBackgroundRestricted = function (arg0) {
+    return execute_boolean('IsBackgroundRestricted', arg0);
+};
+
 exports.RequestOptimizations = function (arg0) {
     return execute('RequestOptimizations', arg0);
 };

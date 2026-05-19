@@ -1,6 +1,7 @@
 package cordova.plugin.PowerOptimization;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
@@ -41,6 +42,9 @@ public class PowerOptimization extends CordovaPlugin {
             return true;
         } else if (action.equals("RequestOptimizationsMenu")) {
             this.RequestOptimizationsMenu(context, packageName, callbackContext);
+            return true;
+        } else if (action.equals("IsBackgroundRestricted")) {
+            this.IsBackgroundRestricted(context, callbackContext);
             return true;
         } else if (action.equals("IsIgnoringDataSaver")) {
             this.IsIgnoringDataSaver(context, packageName, callbackContext);
@@ -135,6 +139,38 @@ public class PowerOptimization extends CordovaPlugin {
             }
         } catch (Exception e) {
             callbackContext.error("RequestOptimizationsMenu: failed N/A");
+            return false;
+        }
+    }
+
+    // Returns "true" if the user (or an OEM policy) has set the app's
+    // background activity to "Restricted" in Settings — separate from the
+    // Doze whitelist (IsIgnoringBatteryOptimizations). On Samsung A41-class
+    // devices this layer is what consistently killed the app mid-walk on
+    // the 2026-05-18 field test; detecting it at onboarding lets us
+    // hard-block before the walker is sent off.
+    //
+    // The underlying API is ActivityManager.isBackgroundRestricted(),
+    // available from Android 9 / API 28 onwards. On older Android we have
+    // no equivalent signal — return "false" so callers can fast-path.
+    @TargetApi(Build.VERSION_CODES.P)
+    public boolean IsBackgroundRestricted(Context context, CallbackContext callbackContext) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                if (am == null) {
+                    callbackContext.success("false");
+                    return true;
+                }
+                boolean restricted = am.isBackgroundRestricted();
+                callbackContext.success(restricted ? "true" : "false");
+                return true;
+            } else {
+                callbackContext.success("false");
+                return true;
+            }
+        } catch (Exception e) {
+            callbackContext.error("IsBackgroundRestricted: failed N/A");
             return false;
         }
     }
