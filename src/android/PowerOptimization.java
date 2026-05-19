@@ -46,6 +46,9 @@ public class PowerOptimization extends CordovaPlugin {
         } else if (action.equals("IsBackgroundRestricted")) {
             this.IsBackgroundRestricted(context, callbackContext);
             return true;
+        } else if (action.equals("IsPowerSaveMode")) {
+            this.IsPowerSaveMode(context, callbackContext);
+            return true;
         } else if (action.equals("IsIgnoringDataSaver")) {
             this.IsIgnoringDataSaver(context, packageName, callbackContext);
             return true;
@@ -116,19 +119,24 @@ public class PowerOptimization extends CordovaPlugin {
         }
     }
 
-    // Only allow android M or newest versions
+    // Only allow android M or newest versions.
+    // Pre-fix bug: the `pm.isIgnoringBatteryOptimizations(packageName)` guard
+    // was INVERTED — the settings page only opened when the app was already
+    // whitelisted (i.e. when the user didn't need it). The action
+    // ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS has no API restriction tied
+    // to current whitelist state; the guard served no purpose. Removed so
+    // the menu opens unconditionally on API 23+, which is what every caller
+    // intended. The FlanerieAudioMap JS layer (P1.12) had been routing
+    // around this via `GEO.showAppSettings()`; the workaround can be
+    // unwound at the JS level whenever convenient.
     @TargetApi(Build.VERSION_CODES.M)
     public boolean RequestOptimizationsMenu(Context context, String packageName, CallbackContext callbackContext) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 Intent intent = new Intent();
-                PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-                if (pm.isIgnoringBatteryOptimizations(packageName)){
-                    intent.setAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
-                }
-
+                intent.setAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
                 callbackContext.success();
                 return true;
             }
@@ -171,6 +179,36 @@ public class PowerOptimization extends CordovaPlugin {
             }
         } catch (Exception e) {
             callbackContext.error("IsBackgroundRestricted: failed N/A");
+            return false;
+        }
+    }
+
+    // Returns "true" when phone-wide battery saver is active. Distinct from
+    // app-level restrictions (IsIgnoringBatteryOptimizations / IsBackgroundRestricted)
+    // — this is the global "Économiseur de batterie" toggle that the user
+    // may flip when their phone is low on battery. Background-service
+    // throttling and timer coalescing can degrade the walk audibly while
+    // it's on. Surface as a SOFT WARNING (not a hard block) — the walker
+    // may genuinely need to keep it on to finish the day.
+    //
+    // PowerManager.isPowerSaveMode() is available from API 21 / Lollipop.
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    public boolean IsPowerSaveMode(Context context, CallbackContext callbackContext) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                if (pm == null) {
+                    callbackContext.success("false");
+                    return true;
+                }
+                callbackContext.success(pm.isPowerSaveMode() ? "true" : "false");
+                return true;
+            } else {
+                callbackContext.success("false");
+                return true;
+            }
+        } catch (Exception e) {
+            callbackContext.error("IsPowerSaveMode: failed N/A");
             return false;
         }
     }

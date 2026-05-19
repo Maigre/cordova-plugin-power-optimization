@@ -31,6 +31,13 @@ exports.IsBackgroundRestricted = function (arg0) {
     return execute_boolean('IsBackgroundRestricted', arg0);
 };
 
+// API 21+: true when phone-wide "Économiseur de batterie" is on. Surfaced
+// as a SOFT warning in onboarding — degrades walk audio quality (background
+// service throttling, timer coalescing) but the user may need it for battery.
+exports.IsPowerSaveMode = function (arg0) {
+    return execute_boolean('IsPowerSaveMode', arg0);
+};
+
 exports.RequestOptimizations = function (arg0) {
     return execute('RequestOptimizations', arg0);
 };

@@ -50,6 +50,36 @@ public class Constants {
     private static final String MEIZU_POWERSAVING_ACTIVITY_V3_4 = "com.meizu.safe.powerui.AppPowerManagerActivity";
     private static final String MEIZU_POWERSAVING_ACTIVITY_V3_7 = "com.meizu.safe.powerui.PowerAppPermissionActivity";
 
+    // ─── Modern OEM intents (added 2026-05-19) ─────────────────────────────
+    // Sourced from dontkillmyapp.com; covers the most common One UI 4+,
+    // OnePlus, Oppo/Realme, Vivo, Honor activities. Intents that don't
+    // resolve on the current device are filtered out by
+    // ProtectedApps.HaveProtectedAppIntent() at runtime, so it's safe to
+    // include all variants.
+
+    // SAMSUNG One UI 4+ (sleeping-apps / app-sleep activities)
+    private static final String SAMSUNG_ONEUI4_SLEEPING_APPS_PKG = "com.samsung.android.lool";
+    private static final String SAMSUNG_ONEUI4_SLEEPING_APPS_CLS = "com.samsung.android.sm.battery.ui.deep.AppSleepListActivity";
+    // Newer One UI variant
+    private static final String SAMSUNG_ONEUI5_SLEEPING_APPS_PKG = "com.samsung.android.lool";
+    private static final String SAMSUNG_ONEUI5_SLEEPING_APPS_CLS = "com.samsung.android.sm.battery.app.power.AppSleepingActivity";
+
+    // OnePlus (ChainLaunch / autostart manager)
+    private static final String ONEPLUS_PKG = "com.oneplus.security";
+    private static final String ONEPLUS_CLS = "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity";
+
+    // OPPO / Realme (ColorOS startup manager)
+    private static final String OPPO_PKG = "com.coloros.safecenter";
+    private static final String OPPO_CLS = "com.coloros.safecenter.startupapp.StartupAppListActivity";
+
+    // Vivo (FunTouch / OriginOS bg-startup manager)
+    private static final String VIVO_PKG = "com.vivo.permissionmanager";
+    private static final String VIVO_CLS = "com.vivo.permissionmanager.activity.BgStartUpManagerActivity";
+
+    // Honor MagicOS (post-Huawei split)
+    private static final String HONOR_PKG = "com.hihonor.systemmanager";
+    private static final String HONOR_CLS = "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity";
+
     public List<Intent> powerManagerIntents;
 
     public Constants(Context context){
@@ -105,7 +135,33 @@ public class Constants {
         Intent meizu_4 = new Intent();
         meizu_4.setClassName(MEIZU_DEFAULT_PACKAGE, MEIZU_POWERSAVING_ACTIVITY_V3_7);
 
-        // TODO ASUS, OPPO, Elephone, Sony STAMINA, Huawei Phone manager (EMUI 5)
+        // TODO ASUS, Elephone, Sony STAMINA, Huawei Phone manager (EMUI 5)
+
+        // ─── Modern OEM intents (2026-05-19) ───────────────────────────────
+        // Samsung One UI 4+ sleeping-apps (legacy AppSleepListActivity)
+        Intent samsung_oneui4 = new Intent();
+        samsung_oneui4.setComponent(new ComponentName(SAMSUNG_ONEUI4_SLEEPING_APPS_PKG, SAMSUNG_ONEUI4_SLEEPING_APPS_CLS));
+        samsung_oneui4.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Samsung One UI 5+ sleeping-apps (newer AppSleepingActivity)
+        Intent samsung_oneui5 = new Intent();
+        samsung_oneui5.setComponent(new ComponentName(SAMSUNG_ONEUI5_SLEEPING_APPS_PKG, SAMSUNG_ONEUI5_SLEEPING_APPS_CLS));
+        samsung_oneui5.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // OnePlus chain-launch / autostart manager
+        Intent oneplus_1 = new Intent();
+        oneplus_1.setComponent(new ComponentName(ONEPLUS_PKG, ONEPLUS_CLS));
+        oneplus_1.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // OPPO / Realme ColorOS startup manager
+        Intent oppo_1 = new Intent();
+        oppo_1.setComponent(new ComponentName(OPPO_PKG, OPPO_CLS));
+        oppo_1.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Vivo FunTouch / OriginOS background-startup manager
+        Intent vivo_1 = new Intent();
+        vivo_1.setComponent(new ComponentName(VIVO_PKG, VIVO_CLS));
+        vivo_1.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Honor MagicOS (post-Huawei split)
+        Intent honor_1 = new Intent();
+        honor_1.setComponent(new ComponentName(HONOR_PKG, HONOR_CLS));
+        honor_1.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         powerManagerIntents = Arrays.asList(
                 xiomi_1,
@@ -113,13 +169,19 @@ public class Constants {
                 samsung_2,
                 samsung_3,
                 samsung_4,
+                samsung_oneui4,
+                samsung_oneui5,
                 huawei_1,
                 huawei_2,
                 letv_1,
                 meizu_1,
                 meizu_2,
                 meizu_3,
-                meizu_4
+                meizu_4,
+                oneplus_1,
+                oppo_1,
+                vivo_1,
+                honor_1
         );
     }
 
