@@ -2,6 +2,7 @@ package cordova.plugin.PowerOptimization;
 
 import android.annotation.TargetApi;
 import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
@@ -11,11 +12,15 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 
-import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.PluginResult;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.List;
 
 import static android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_DISABLED;
 import static android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED;
@@ -63,6 +68,15 @@ public class PowerOptimization extends CordovaPlugin {
             Boolean force = args.optBoolean(0, false);
             ProtectedApps.ProtectedAppCheck(context, callbackContext, force);
             return true;
+        } else if (action.equals("GetLastExitReasons")) {
+            this.GetLastExitReasons(context, packageName, callbackContext);
+            return true;
+        } else if (action.equals("GetMemoryInfo")) {
+            this.GetMemoryInfo(context, callbackContext);
+            return true;
+        } else if (action.equals("GetStandbyBucket")) {
+            this.GetStandbyBucket(context, callbackContext);
+            return true;
         }
         return false;
     }
@@ -72,20 +86,12 @@ public class PowerOptimization extends CordovaPlugin {
     public boolean IsIgnoringBatteryOptimizations(Context context, String packageName, CallbackContext callbackContext) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                String message = "";
                 PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-                if (pm.isIgnoringBatteryOptimizations(packageName)) {
-                    message ="true";
-                }
-                else
-                {
-                    message ="false";
-                }
-                callbackContext.success(message);
+                boolean ignoring = pm.isIgnoringBatteryOptimizations(packageName);
+                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, ignoring);
+                callbackContext.sendPluginResult(pluginResult);
                 return true;
-            }
-            else
-            {
+            } else {
                 callbackContext.error("BATTERY_OPTIMIZATIONS Not available.");
                 return false;
             }
@@ -167,14 +173,14 @@ public class PowerOptimization extends CordovaPlugin {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
                 if (am == null) {
-                    callbackContext.success("false");
+                    callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, false));
                     return true;
                 }
                 boolean restricted = am.isBackgroundRestricted();
-                callbackContext.success(restricted ? "true" : "false");
+                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, restricted));
                 return true;
             } else {
-                callbackContext.success("false");
+                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, false));
                 return true;
             }
         } catch (Exception e) {
@@ -198,13 +204,13 @@ public class PowerOptimization extends CordovaPlugin {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
                 if (pm == null) {
-                    callbackContext.success("false");
+                    callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, false));
                     return true;
                 }
-                callbackContext.success(pm.isPowerSaveMode() ? "true" : "false");
+                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, pm.isPowerSaveMode()));
                 return true;
             } else {
-                callbackContext.success("false");
+                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, false));
                 return true;
             }
         } catch (Exception e) {
@@ -218,31 +224,26 @@ public class PowerOptimization extends CordovaPlugin {
     public boolean IsIgnoringDataSaver(Context context, String packageName, CallbackContext callbackContext) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-
-                String message = "";
                 ConnectivityManager connMgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-
+                boolean isIgnoring;
                 switch (connMgr.getRestrictBackgroundStatus()) {
                     case RESTRICT_BACKGROUND_STATUS_ENABLED:
-                        // The app is whitelisted. Wherever possible,
-                        // the app should use less data in the foreground and background.
-                        message = "false";
+                        // Data Saver on, app is NOT whitelisted — background data is restricted.
+                        isIgnoring = false;
                         break;
-
                     case RESTRICT_BACKGROUND_STATUS_WHITELISTED:
-                        // Background data usage is blocked for this app. Wherever possible,
-                        // the app should also use less data in the foreground.
-                        message = "true";
+                        // Data Saver on, app IS whitelisted — background data is allowed.
+                        isIgnoring = true;
                         break;
                     case RESTRICT_BACKGROUND_STATUS_DISABLED:
-                        // Data Saver is disabled. Since the device is connected to a
-                        // metered network, the app should use less data wherever possible.
-                        message = "true";
+                        // Data Saver is off — no restriction.
+                        isIgnoring = true;
                         break;
+                    default:
+                        isIgnoring = false;
                 }
-                callbackContext.success(message);
+                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, isIgnoring));
                 return true;
-
             } else {
                 callbackContext.error("DATA_SAVER Not available.");
                 return false;
@@ -250,7 +251,6 @@ public class PowerOptimization extends CordovaPlugin {
         } catch (Exception e) {
             callbackContext.error("IsIgnoringDataSaver: failed N/A");
             return false;
-
         }
     }
 
@@ -276,6 +276,136 @@ public class PowerOptimization extends CordovaPlugin {
         } catch (Exception e) {
             callbackContext.error("RequestDataSaverMenu failed: N/A");
             return false;
+        }
+    }
+
+    /**
+     * PO-2: Returns up to 5 most recent process exit reasons (API 30+).
+     * Answers why the app was killed — low memory, ANR, OEM-kill, etc.
+     * Returns an empty array on Android < 11.
+     */
+    @TargetApi(Build.VERSION_CODES.R)
+    public boolean GetLastExitReasons(Context context, String packageName, CallbackContext callbackContext) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                List<ApplicationExitInfo> reasons = am.getHistoricalProcessExitReasons(packageName, 0, 5);
+                JSONArray result = new JSONArray();
+                for (ApplicationExitInfo info : reasons) {
+                    JSONObject item = new JSONObject();
+                    item.put("reason", info.getReason());
+                    item.put("description", exitReasonString(info.getReason()));
+                    item.put("timestamp", info.getTimestamp());
+                    item.put("importance", info.getImportance());
+                    item.put("processName", info.getProcessName());
+                    result.put(item);
+                }
+                callbackContext.success(result);
+                return true;
+            } else {
+                callbackContext.success(new JSONArray());
+                return true;
+            }
+        } catch (Exception e) {
+            callbackContext.error("GetLastExitReasons: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.R)
+    private String exitReasonString(int reason) {
+        switch (reason) {
+            case ApplicationExitInfo.REASON_ANR:                       return "ANR";
+            case ApplicationExitInfo.REASON_CRASH:                     return "CRASH";
+            case ApplicationExitInfo.REASON_CRASH_NATIVE:              return "CRASH_NATIVE";
+            case ApplicationExitInfo.REASON_DEPENDENCY_DIED:           return "DEPENDENCY_DIED";
+            case ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE:  return "EXCESSIVE_RESOURCE_USAGE";
+            case ApplicationExitInfo.REASON_EXIT_SELF:                 return "EXIT_SELF";
+            case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE:    return "INITIALIZATION_FAILURE";
+            case ApplicationExitInfo.REASON_LOW_MEMORY:                return "LOW_MEMORY";
+            case ApplicationExitInfo.REASON_OTHER:                     return "OTHER";
+            case ApplicationExitInfo.REASON_PERMISSION_CHANGE:         return "PERMISSION_CHANGE";
+            case ApplicationExitInfo.REASON_SIGNALED:                  return "SIGNALED";
+            case ApplicationExitInfo.REASON_UNKNOWN:                   return "UNKNOWN";
+            case ApplicationExitInfo.REASON_USER_REQUESTED:            return "USER_REQUESTED";
+            case ApplicationExitInfo.REASON_USER_STOPPED:              return "USER_STOPPED";
+            default:                                                    return "reason_" + reason;
+        }
+    }
+
+    /**
+     * PO-3: Returns system and app-level memory statistics.
+     * Useful for correlating OOM kills with available memory at walk time.
+     */
+    public boolean GetMemoryInfo(Context context, CallbackContext callbackContext) {
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+            am.getMemoryInfo(memInfo);
+
+            android.os.Debug.MemoryInfo debugMemInfo = new android.os.Debug.MemoryInfo();
+            android.os.Debug.getMemoryInfo(debugMemInfo);
+
+            JSONObject result = new JSONObject();
+            result.put("availMem",            memInfo.availMem);
+            result.put("totalMem",            memInfo.totalMem);
+            result.put("threshold",           memInfo.threshold);
+            result.put("lowMemory",           memInfo.lowMemory);
+            result.put("nativeHeapAllocated", android.os.Debug.getNativeHeapAllocatedSize());
+            result.put("nativeHeapSize",      android.os.Debug.getNativeHeapSize());
+            result.put("javaHeapUsed",        Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
+            result.put("javaHeapMax",         Runtime.getRuntime().maxMemory());
+            result.put("totalPss",            (long) debugMemInfo.getTotalPss() * 1024L);
+            callbackContext.success(result);
+            return true;
+        } catch (Exception e) {
+            callbackContext.error("GetMemoryInfo: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * PO-4: Returns the app's standby bucket name (API 28+).
+     * ACTIVE / WORKING_SET / FREQUENT / RARE / RESTRICTED / EXEMPTED.
+     * Buckets below WORKING_SET cause aggressive job / alarm deferral that
+     * can degrade background GPS and audio on long walks.
+     */
+    @TargetApi(Build.VERSION_CODES.P)
+    public boolean GetStandbyBucket(Context context, CallbackContext callbackContext) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                android.app.usage.UsageStatsManager usm =
+                    (android.app.usage.UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
+                if (usm == null) {
+                    callbackContext.success("UNKNOWN");
+                    return true;
+                }
+                int bucket = usm.getAppStandbyBucket();
+                callbackContext.success(standbyBucketString(bucket));
+                return true;
+            } else {
+                callbackContext.success("UNKNOWN");
+                return true;
+            }
+        } catch (Exception e) {
+            callbackContext.error("GetStandbyBucket: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.P)
+    private String standbyBucketString(int bucket) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // STANDBY_BUCKET_EXEMPTED (5) and STANDBY_BUCKET_RESTRICTED (45) added in API 30
+            if (bucket == 5)  return "EXEMPTED";
+            if (bucket == 45) return "RESTRICTED";
+        }
+        switch (bucket) {
+            case android.app.usage.UsageStatsManager.STANDBY_BUCKET_ACTIVE:      return "ACTIVE";
+            case android.app.usage.UsageStatsManager.STANDBY_BUCKET_WORKING_SET: return "WORKING_SET";
+            case android.app.usage.UsageStatsManager.STANDBY_BUCKET_FREQUENT:    return "FREQUENT";
+            case android.app.usage.UsageStatsManager.STANDBY_BUCKET_RARE:        return "RARE";
+            default:                                                               return "bucket_" + bucket;
         }
     }
 

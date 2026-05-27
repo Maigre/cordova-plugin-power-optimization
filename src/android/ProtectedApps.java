@@ -35,9 +35,15 @@ public class ProtectedApps {
                 }
             }
         }
-        
-        editor.putBoolean("skipProtectedAppCheck", true);
-        editor.apply();
+
+        // Only persist the "skip" flag when we actually found and launched an OEM
+        // power-manager intent. If no intent exists on this device, do not set the
+        // flag — that way a future call (or a plugin update with new intents) can
+        // still scan rather than being permanently short-circuited.
+        if (foundCorrectIntent) {
+            editor.putBoolean("skipProtectedAppCheck", true);
+            editor.apply();
+        }
 
         result.put("skip_message", skipMessage);
         result.put("found_intent", foundCorrectIntent);

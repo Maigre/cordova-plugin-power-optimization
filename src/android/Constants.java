@@ -18,6 +18,12 @@ public class Constants {
     private static final String MIUI_ACTION_POWER_SAVE_EXTRA_LABEL = "package_label";
     private static final String[] MIUI_ACTION_POWERSAVE = {"com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"};
 
+    // MIUI / Xiaomi autostart manager — the dedicated "Autostart" toggle that must be
+    // explicitly enabled for Xiaomi/MIUI devices to survive OEM background-kill;
+    // this is distinct from the power-keeper entry above.
+    private static final String MIUI_AUTOSTART_PKG = "com.miui.securitycenter";
+    private static final String MIUI_AUTOSTART_CLS = "com.miui.permcenter.autostart.AutoStartManagementActivity";
+
     // SAMSUNG crash "com.samsung.android.lool","com.samsung.android.sm.ui.battery.AppSleepListActivity"
     private static final String SAMSUNG_SYSTEMMANAGER_POWERSAVING_ACTION = "com.samsung.android.sm.ACTION_BATTERY";
     private static final String SAMSUNG_SYSTEMMANAGER_NOTIFICATION_ACTION = "com.samsung.android.sm.ACTION_SM_NOTIFICATION_SETTING";
@@ -96,6 +102,12 @@ public class Constants {
         xiomi_1.putExtra(MIUI_ACTION_POWER_SAVE_EXTRA_NAME, context.getPackageName());
         xiomi_1.putExtra(MIUI_ACTION_POWER_SAVE_EXTRA_LABEL, getApplicationName());
 
+        // Xiaomi autostart manager — the "Autostart" toggle that guards against OEM kill
+        // on MIUI devices; separate from the power-keeper activity above.
+        Intent xiaomi_autostart = new Intent();
+        xiaomi_autostart.setComponent(new ComponentName(MIUI_AUTOSTART_PKG, MIUI_AUTOSTART_CLS));
+        xiaomi_autostart.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
         // Samsung intents
         Intent samsung_1 = new Intent();
         samsung_1.setAction(SAMSUNG_SYSTEMMANAGER_POWERSAVING_ACTION);
@@ -122,7 +134,7 @@ public class Constants {
         // LeTV
         // TODO Test it
         Intent letv_1 = new Intent();
-        huawei_1.setComponent(new ComponentName(LETV_ACTION_POWERSAVING_PKG, LETV_ACTION_POWERSAVING_CLS));
+        letv_1.setComponent(new ComponentName(LETV_ACTION_POWERSAVING_PKG, LETV_ACTION_POWERSAVING_CLS));
 
         // Meizu
         // TODO Test it
@@ -165,6 +177,7 @@ public class Constants {
 
         powerManagerIntents = Arrays.asList(
                 xiomi_1,
+                xiaomi_autostart,
                 samsung_1,
                 samsung_2,
                 samsung_3,
