@@ -109,4 +109,20 @@
                                 callbackId:command.callbackId];
 }
 
+#pragma mark - PO-9 auto-revoke / hibernation (Android-only; iOS no-op = whitelisted)
+
+- (void)IsAutoRevokeWhitelisted:(CDVInvokedUrlCommand*)command {
+    // iOS has no equivalent hibernation policy — report as whitelisted so
+    // callers don't show an Android-only warning to iOS users.
+    [self.commandDelegate sendPluginResult:
+        [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:YES]
+                                callbackId:command.callbackId];
+}
+
+- (void)RequestAutoRevokeWhitelist:(CDVInvokedUrlCommand*)command {
+    [self.commandDelegate sendPluginResult:
+        [CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
+                                callbackId:command.callbackId];
+}
+
 @end

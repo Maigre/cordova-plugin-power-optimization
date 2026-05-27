@@ -87,3 +87,15 @@ exports.GetMemoryInfo = function (arg0) {
 exports.GetStandbyBucket = function (arg0) {
     return execute('GetStandbyBucket', arg0);
 };
+
+// PO-9: Returns true if the app is on the auto-revoke whitelist (Android 11+).
+// iOS / older Android: returns true (no hibernation policy applies).
+exports.IsAutoRevokeWhitelisted = function (arg0) {
+    return execute_boolean('IsAutoRevokeWhitelisted', arg0);
+};
+
+// PO-9: Opens the app-details settings page so the user can opt out of
+// auto-revoke / hibernation. Android-only meaningful action; iOS = no-op.
+exports.RequestAutoRevokeWhitelist = function (arg0) {
+    return execute('RequestAutoRevokeWhitelist', arg0);
+};

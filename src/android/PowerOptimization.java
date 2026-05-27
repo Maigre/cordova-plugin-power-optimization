@@ -77,8 +77,64 @@ public class PowerOptimization extends CordovaPlugin {
         } else if (action.equals("GetStandbyBucket")) {
             this.GetStandbyBucket(context, callbackContext);
             return true;
+        } else if (action.equals("IsAutoRevokeWhitelisted")) {
+            this.IsAutoRevokeWhitelisted(context, callbackContext);
+            return true;
+        } else if (action.equals("RequestAutoRevokeWhitelist")) {
+            this.RequestAutoRevokeWhitelist(context, packageName, callbackContext);
+            return true;
         }
         return false;
+    }
+
+    /**
+     * PO-9: Auto-revoke / hibernation watch (Android 11+, API 30).
+     * Returns true if the app is on the auto-revoke whitelist (i.e. the OS
+     * will NOT auto-strip its permissions or hibernate it after long idle).
+     * On Android &lt; 11 returns true (no hibernation policy exists, so the
+     * app is effectively whitelisted).
+     */
+    @TargetApi(Build.VERSION_CODES.R)
+    public boolean IsAutoRevokeWhitelisted(Context context, CallbackContext callbackContext) {
+        try {
+            boolean whitelisted = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.content.pm.PackageManager pm = context.getPackageManager();
+                whitelisted = pm.isAutoRevokeWhitelisted();
+            }
+            PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, whitelisted);
+            callbackContext.sendPluginResult(pluginResult);
+            return true;
+        } catch (Exception e) {
+            callbackContext.error("IsAutoRevokeWhitelisted: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * PO-9: Opens the app-details settings page so the user can toggle the
+     * "Remove permissions and free up space" option off (Android 11+).
+     * No deep-link to that specific toggle is part of the public API; the
+     * app-details page is the closest the platform exposes.
+     */
+    @TargetApi(Build.VERSION_CODES.R)
+    public boolean RequestAutoRevokeWhitelist(Context context, String packageName, CallbackContext callbackContext) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.setData(Uri.parse("package:" + packageName));
+                context.startActivity(intent);
+                callbackContext.success();
+                return true;
+            } else {
+                callbackContext.error("AUTO_REVOKE not available before Android 11");
+                return false;
+            }
+        } catch (Exception e) {
+            callbackContext.error("RequestAutoRevokeWhitelist: " + e.getMessage());
+            return false;
+        }
     }
 
     // Only allow android M or newest versions
