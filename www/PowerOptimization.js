@@ -2,6 +2,9 @@ var exec = require('cordova/exec');
 
 var MODULE = "PowerOptimization";
 
+// Promise-based wrappers keep the Cordova bridge consistent across the Flanerie
+// diagnostics screens and onboarding checks.
+
 var execute = function (function_name, arg0) {
     return new Promise(function (resolve, reject) {
         console.debug("PowerOptimization:execute", { MODULE: MODULE, function_name: function_name, arg: [arg0] })
